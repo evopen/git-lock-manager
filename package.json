@@ -1,0 +1,12 @@
+{
+  "name": "git-lock-manager",
+  "version": "1.0.0",
+  "description": "A git lfs lock GUI",
+  "main": "index.html",
+  "repository": "github.com/evopen/git-lock-manager",
+  "author": "evopen",
+  "license": "MIT",
+  "dependencies": {
+    "tauri": "^0.12.0"
+  }
+}
