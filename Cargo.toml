@@ -2,4 +2,5 @@
 
 members = [
     "front-end",
+    "src-tauri"
 ]
