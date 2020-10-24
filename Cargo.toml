@@ -2,5 +2,6 @@
 
 members = [
     "frontend",
+    "backend-api",
     "src-tauri"
 ]
