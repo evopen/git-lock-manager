@@ -4,6 +4,7 @@
 )]
 
 use backend_api as api;
+use backend_api::Request;
 use nfd2::Response;
 use std::path::PathBuf;
 
@@ -44,6 +45,17 @@ fn main() {
                                 Some(p) => Ok(api::Response::PickRepo {
                                     path: String::from(p.to_str().unwrap().to_string()),
                                 }),
+                            },
+                            callback,
+                            error,
+                        ),
+                        api::Request::GetLockedFiles { callback, error } => tauri::execute_promise(
+                            _webview,
+                            move || {
+                                std::thread::sleep(std::time::Duration::from_secs(3));
+                                Ok(api::Response::GetLockedFiles {
+                                    locked_files: vec!["asdf".to_string(), "asdfefe".to_string()],
+                                })
                             },
                             callback,
                             error,

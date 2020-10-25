@@ -5,6 +5,7 @@ use backend_api::Response;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use yew::prelude::*;
+use yew::services::ConsoleService;
 use yewtil::future::LinkFuture;
 
 enum Msg {
@@ -13,6 +14,13 @@ enum Msg {
     PickRepo,
     RepoPicked { repo: String },
     FilterChanged(String),
+    GetLockedFiles,
+    LockedFilesReceived(Vec<String>),
+}
+
+enum ListType {
+    LockedFiles,
+    SearchResult,
 }
 
 struct Model {
@@ -24,6 +32,7 @@ struct Model {
     filter: String,
     lock_list: Vec<String>,
     filter_list: Vec<String>,
+    list_type: ListType,
 }
 
 #[wasm_bindgen]
@@ -59,6 +68,23 @@ pub async fn pick_repo() -> Result<String, JsValue> {
     let response: api::Response = future.await?.into_serde().unwrap();
     match response {
         Response::PickRepo { path } => Ok(path),
+        _ => Err(JsValue::from_str("failed to get pick repo response")),
+    }
+}
+
+#[wasm_bindgen]
+pub async fn get_locked_files() -> Result<js_sys::Array, JsValue> {
+    let tauri = get_tauri().unwrap();
+    let value: JsValue = tauri
+        .promisified(JsValue::from_serde(&api::Request::GetLockedFiles).unwrap())
+        .unwrap();
+    let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    let response: api::Response = future.await?.into_serde().unwrap();
+    match response {
+        Response::GetLockedFiles { locked_files } => {
+            Ok(locked_files.into_iter().map(JsValue::from).collect())
+        }
+        _ => Err(JsValue::from_str("failed to get locked files response")),
     }
 }
 
@@ -74,6 +100,7 @@ impl Component for Model {
             filter: String::new(),
             lock_list: Vec::new(),
             filter_list: Vec::new(),
+            list_type: ListType::LockedFiles,
         }
     }
 
@@ -110,8 +137,36 @@ impl Component for Model {
                 }
             }
             Msg::FilterChanged(filter) => {
+                self.list_type = match filter.is_empty() {
+                    true => ListType::LockedFiles,
+                    false => ListType::SearchResult,
+                };
                 self.filter = filter;
                 true
+            }
+            Msg::GetLockedFiles => {
+                match self.repo.is_empty() {
+                    true => ConsoleService::log("did not select git repo yet"),
+                    false => {
+                        self.link.send_future(async {
+                            match get_locked_files().await {
+                                Ok(arr) => Msg::LockedFilesReceived(
+                                    arr.iter().map(|v| v.as_string().unwrap()).collect(),
+                                ),
+                                Err(_) => Msg::LockedFilesReceived(Vec::new()),
+                            }
+                        });
+                    }
+                }
+
+                false
+            }
+            Msg::LockedFilesReceived(v) => {
+                self.lock_list = v;
+                for s in &self.lock_list {
+                    ConsoleService::log(&s);
+                }
+                false
             }
         }
     }
@@ -133,6 +188,7 @@ impl Component for Model {
                 <p>{ &self.repo }</p>
                 <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
                 <p>{ &self.filter }</p>
+                <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
             </div>
         }
     }
