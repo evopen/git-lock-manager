@@ -38,6 +38,7 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "backend-api",
+ "nfd2",
  "serde",
  "serde_json",
  "tauri",
@@ -483,6 +484,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "yew",
+ "yewtil",
 ]
 
 [[package]]
@@ -841,6 +843,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e752e3c216bc8a491c5b59fa46da10f1379ae450b19ac688e07f4bb55042e98"
 dependencies = [
  "gcc",
+]
+
+[[package]]
+name = "nfd2"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cedbdc1ecacd67f890b05bf38d268cf42dd070a4b44e82b89c4757998e7250d5"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -1944,6 +1955,19 @@ dependencies = [
  "proc-macro2",
  "quote 1.0.7",
  "syn 1.0.48",
+]
+
+[[package]]
+name = "yewtil"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "003f4f533ee696c1f69d753db2c66096dec5700a93bd0bc801ab5891fec041c6"
+dependencies = [
+ "futures",
+ "log",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "yew",
 ]
 
 [[package]]

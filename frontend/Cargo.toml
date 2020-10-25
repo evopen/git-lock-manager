@@ -13,3 +13,4 @@ wasm-bindgen = {version = "0.2.68", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.18"
 web-sys = "0.3.45"
 yew = "0.17"
+yewtil = "0.3.2"

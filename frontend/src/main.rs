@@ -1,13 +1,15 @@
-use backend_api::{Request, Response};
+use backend_api as api;
+use backend_api::Response;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::Window;
 use yew::prelude::*;
+use yewtil::future::LinkFuture;
 
 enum Msg {
     AddOne,
     Echo { message: String },
     PickRepo,
+    RepoPicked { repo: String },
 }
 
 struct Model {
@@ -44,6 +46,19 @@ pub fn get_tauri() -> Result<Tauri, JsValue> {
     Ok(tauri)
 }
 
+#[wasm_bindgen]
+pub async fn pick_repo() -> Result<String, JsValue> {
+    let tauri = get_tauri().unwrap();
+    let value: JsValue = tauri
+        .promisified(JsValue::from_serde(&api::Request::PickRepo).unwrap())
+        .unwrap();
+    let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    let response: api::Response = future.await?.into_serde().unwrap();
+    match response {
+        Response::PickRepo { path } => Ok(path),
+    }
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -68,12 +83,23 @@ impl Component for Model {
                 true
             }
             Msg::PickRepo => {
-                let fuck = get_tauri().unwrap();
+                self.link.send_future(async {
+                    match pick_repo().await {
+                        Ok(repo) => Msg::RepoPicked { repo },
+                        Err(_) => Msg::RepoPicked {
+                            repo: String::new(),
+                        },
+                    }
+                });
                 true
             }
             Msg::Echo { message } => {
                 let tauri = get_tauri().unwrap();
-                tauri.invoke(JsValue::from_serde(&Request::Echo { message }).unwrap());
+                tauri.invoke(JsValue::from_serde(&api::Request::Echo { message }).unwrap());
+                true
+            }
+            Msg::RepoPicked { repo } => {
+                self.repo = repo;
                 true
             }
         }
@@ -93,6 +119,7 @@ impl Component for Model {
                 <p>{ self.value }</p>
                 <button onclick=self.link.callback(|_| Msg::PickRepo)>{ "Pick Repo" }</button>
                 <button onclick=self.link.callback(|_| Msg::Echo{message: String::from("fuck")})>{ "Echo" }</button>
+                <p>{ &self.repo }</p>
             </div>
         }
     }
