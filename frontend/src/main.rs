@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 use backend_api as api;
 use backend_api::Response;
 use wasm_bindgen::prelude::*;
@@ -10,6 +12,7 @@ enum Msg {
     Echo { message: String },
     PickRepo,
     RepoPicked { repo: String },
+    FilterChanged(String),
 }
 
 struct Model {
@@ -106,6 +109,10 @@ impl Component for Model {
                     false
                 }
             }
+            Msg::FilterChanged(filter) => {
+                self.filter = filter;
+                true
+            }
         }
     }
 
@@ -124,6 +131,8 @@ impl Component for Model {
                 <button onclick=self.link.callback(|_| Msg::PickRepo)>{ "Pick Repo" }</button>
                 <button onclick=self.link.callback(|_| Msg::Echo{message: String::from("fuck")})>{ "Echo" }</button>
                 <p>{ &self.repo }</p>
+                <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
+                <p>{ &self.filter }</p>
             </div>
         }
     }
