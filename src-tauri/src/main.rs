@@ -3,21 +3,21 @@
     windows_subsystem = "windows"
 )]
 
-mod cmd;
+use backend_api::{Request, Response};
 
 fn main() {
     tauri::AppBuilder::new()
         .invoke_handler(|_webview, arg| {
-            use cmd::Cmd::*;
-            match serde_json::from_str(arg) {
+            match serde_json::from_str::<Request>(arg) {
                 Err(e) => Err(e.to_string()),
                 Ok(command) => {
                     match command {
                         // definitions for your custom commands from Cmd here
-                        MyCustomCommand { argument } => {
+                        Request::Echo { message } => {
                             //  your command code
-                            println!("{}", argument);
+                            println!("{}", message);
                         }
+                        Request::PickRepo { callback, error } => {}
                     }
                     Ok(())
                 }
