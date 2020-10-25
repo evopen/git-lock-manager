@@ -99,8 +99,12 @@ impl Component for Model {
                 true
             }
             Msg::RepoPicked { repo } => {
-                self.repo = repo;
-                true
+                if !repo.is_empty() {
+                    self.repo = repo;
+                    true
+                } else {
+                    false
+                }
             }
         }
     }
