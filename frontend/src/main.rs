@@ -8,6 +8,7 @@ use yew::prelude::*;
 use yew::services::ConsoleService;
 use yewtil::future::LinkFuture;
 
+#[derive(Clone, Debug)]
 enum Msg {
     AddOne,
     Echo { message: String },
@@ -17,6 +18,8 @@ enum Msg {
     GetLockedFiles,
     LockedFilesReceived(Vec<String>),
     FilteredFilesReceived(Vec<String>),
+    LockFile(String),
+    UnlockFile(String),
 }
 
 enum ListType {
@@ -204,6 +207,14 @@ impl Component for Model {
                 }
                 true
             }
+            Msg::LockFile(v) => {
+                ConsoleService::log(&v);
+                false
+            }
+            Msg::UnlockFile(v) => {
+                ConsoleService::log(&v);
+                false
+            }
         }
     }
 
@@ -216,17 +227,32 @@ impl Component for Model {
 
     fn view(&self) -> Html {
         let filtered_list_item = |f: &String| {
+            let (button_text, button_type, event) = if self.locked_files.contains(&f) {
+                (
+                    "Unlock",
+                    "pure-button button-success",
+                    Msg::UnlockFile(f.clone()),
+                )
+            } else {
+                (
+                    "Lock",
+                    "pure-button pure-button-primary",
+                    Msg::LockFile(f.clone()),
+                )
+            };
             html! {
                 <tr>
                     <td>{ f }</td>
-                    <td><button class={"pure-button pure-button-primary"}>{"Unlock"}</button></td>
+                    <td class={"center"}>
+                        <button class={button_type} onclick=self.link.callback(move |_|{event.clone()})>{button_text}</button>
+                    </td>
                 </tr>
             }
         };
 
         let filter_table = html! {
         <div>
-            <table class="pure-table stretch">
+            <table class="pure-table">
                 <thead>
                     <tr>
                         <th>{"File Name"}</th>
