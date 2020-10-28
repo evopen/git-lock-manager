@@ -217,11 +217,27 @@ impl Component for Model {
     fn view(&self) -> Html {
         let filtered_list_item = |f: &String| {
             html! {
-                <div>
-                    <li>{ f }<button>{"Unlock"}</button></li>
-
-                </div>
+                <tr>
+                    <td>{ f }</td>
+                    <td><button class={"pure-button pure-button-primary"}>{"Unlock"}</button></td>
+                </tr>
             }
+        };
+
+        let filter_table = html! {
+        <div>
+            <table class="pure-table stretch">
+                <thead>
+                    <tr>
+                        <th>{"File Name"}</th>
+                        <th>{"Action"}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    { for self.filtered_files.iter().map(filtered_list_item) }
+                </tbody>
+            </table>
+        </div>
         };
         html! {
             <div>
@@ -233,9 +249,7 @@ impl Component for Model {
                 <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
                 <p>{ &self.filter }</p>
                 <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
-                <ul>
-                    { for self.filtered_files.iter().map(filtered_list_item) }
-                </ul>
+                {filter_table}
             </div>
         }
     }
