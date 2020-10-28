@@ -1,6 +1,6 @@
 #![cfg_attr(
-all(not(debug_assertions), target_os = "windows"),
-windows_subsystem = "windows"
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
 )]
 
 use backend_api as api;
@@ -33,7 +33,11 @@ fn get_lfs_files(path: &PathBuf) -> Vec<String> {
         .current_dir(&path)
         .output()
         .expect("failed to run git lfs ls-files");
-    String::from_utf8(output.stdout).unwrap().lines().map(|s|String::from(s)).collect()
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|s| String::from(s))
+        .collect()
 }
 
 fn main() {
@@ -54,31 +58,50 @@ fn main() {
                             //  your command code
                             println!("{}", message);
                         }
-                        api::Request::PickRepo { callback, error } => {
-                            tauri::execute_promise(
-                                _webview,
-                                move || match pick_repo() {
-                                    None => Ok(api::Response::PickRepo {
-                                        path: String::new(),
-                                    }),
-                                    Some(p) => {
-                                        *repo_promise.lock().unwrap() = String::from(p.to_str().unwrap());
-                                        *lfs_files_promise.lock().unwrap() = get_lfs_files(&p);
-                                        Ok(api::Response::PickRepo {
-                                            path: repo_promise.lock().unwrap().clone(),
-                                        })
-                                    }
-                                },
-                                callback,
-                                error,
-                            )
-                        },
+                        api::Request::PickRepo { callback, error } => tauri::execute_promise(
+                            _webview,
+                            move || match pick_repo() {
+                                None => Ok(api::Response::PickRepo {
+                                    path: String::new(),
+                                }),
+                                Some(p) => {
+                                    *repo_promise.lock().unwrap() =
+                                        String::from(p.to_str().unwrap());
+                                    *lfs_files_promise.lock().unwrap() = get_lfs_files(&p);
+                                    Ok(api::Response::PickRepo {
+                                        path: repo_promise.lock().unwrap().clone(),
+                                    })
+                                }
+                            },
+                            callback,
+                            error,
+                        ),
                         api::Request::GetLockedFiles { callback, error } => tauri::execute_promise(
                             _webview,
                             move || {
-                                std::thread::sleep(std::time::Duration::from_secs(3));
                                 Ok(api::Response::GetLockedFiles {
                                     locked_files: vec!["asdf".to_string(), "asdfefe".to_string()],
+                                })
+                            },
+                            callback,
+                            error,
+                        ),
+                        Request::GetFilteredFiles {
+                            filter,
+                            callback,
+                            error,
+                        } => tauri::execute_promise(
+                            _webview,
+                            move || {
+                                let filtered_list: Vec<String> = lfs_files_promise
+                                    .lock()
+                                    .unwrap()
+                                    .iter()
+                                    .filter(|f| f.contains(&filter))
+                                    .cloned()
+                                    .collect();
+                                Ok(api::Response::GetFilteredFiles {
+                                    filtered_files: filtered_list,
                                 })
                             },
                             callback,

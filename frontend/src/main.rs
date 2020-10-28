@@ -16,6 +16,7 @@ enum Msg {
     FilterChanged(String),
     GetLockedFiles,
     LockedFilesReceived(Vec<String>),
+    FilteredFilesReceived(Vec<String>),
 }
 
 enum ListType {
@@ -30,8 +31,8 @@ struct Model {
     value: i64,
     repo: String,
     filter: String,
-    lock_list: Vec<String>,
-    filter_list: Vec<String>,
+    locked_files: Vec<String>,
+    filtered_files: Vec<String>,
     list_type: ListType,
 }
 
@@ -88,6 +89,22 @@ pub async fn get_locked_files() -> Result<js_sys::Array, JsValue> {
     }
 }
 
+#[wasm_bindgen]
+pub async fn get_filtered_files(filter: String) -> Result<js_sys::Array, JsValue> {
+    let tauri = get_tauri().unwrap();
+    let value: JsValue = tauri
+        .promisified(JsValue::from_serde(&api::Request::GetFilteredFiles { filter }).unwrap())
+        .unwrap();
+    let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    let response: api::Response = future.await?.into_serde().unwrap();
+    match response {
+        Response::GetFilteredFiles { filtered_files } => {
+            Ok(filtered_files.into_iter().map(JsValue::from).collect())
+        }
+        _ => Err(JsValue::from_str("failed to get filtered files response")),
+    }
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -98,8 +115,8 @@ impl Component for Model {
             value: 0,
             repo: String::new(),
             filter: String::new(),
-            lock_list: Vec::new(),
-            filter_list: Vec::new(),
+            locked_files: Vec::new(),
+            filtered_files: Vec::new(),
             list_type: ListType::LockedFiles,
         }
     }
@@ -137,9 +154,21 @@ impl Component for Model {
                 }
             }
             Msg::FilterChanged(filter) => {
-                self.list_type = match filter.is_empty() {
-                    true => ListType::LockedFiles,
-                    false => ListType::SearchResult,
+                match filter.is_empty() {
+                    true => self.list_type = ListType::LockedFiles,
+                    false => {
+                        ConsoleService::log(&"filterstart");
+                        let filter = filter.clone();
+                        self.list_type = ListType::SearchResult;
+                        self.link.send_future(async {
+                            match get_filtered_files(filter).await {
+                                Ok(arr) => Msg::FilteredFilesReceived(
+                                    arr.iter().map(|v| v.as_string().unwrap()).collect(),
+                                ),
+                                Err(_) => Msg::FilteredFilesReceived(Vec::new()),
+                            }
+                        })
+                    }
                 };
                 self.filter = filter;
                 true
@@ -162,11 +191,18 @@ impl Component for Model {
                 false
             }
             Msg::LockedFilesReceived(v) => {
-                self.lock_list = v;
-                for s in &self.lock_list {
+                self.locked_files = v;
+                for s in &self.locked_files {
                     ConsoleService::log(&s);
                 }
                 false
+            }
+            Msg::FilteredFilesReceived(v) => {
+                self.filtered_files = v;
+                if !self.filtered_files.is_empty() {
+                    ConsoleService::log(&self.filtered_files[0]);
+                }
+                true
             }
         }
     }
@@ -189,6 +225,11 @@ impl Component for Model {
                 <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
                 <p>{ &self.filter }</p>
                 <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
+                <ul>
+                    { for self.filtered_files.iter().map(|f|{ html! {
+                        <li>{f}</li>
+                    } }) }
+                </ul>
             </div>
         }
     }
