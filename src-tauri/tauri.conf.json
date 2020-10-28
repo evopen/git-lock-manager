@@ -1,6 +1,6 @@
 {
   "build": {
-    "distDir": "../front-end/dist",
+    "distDir": "../frontend/dist",
     "devPath": "http://localhost:4000",
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
