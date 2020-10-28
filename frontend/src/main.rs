@@ -215,6 +215,14 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
+        let filtered_list_item = |f: &String| {
+            html! {
+                <div>
+                    <li>{ f }<button>{"Unlock"}</button></li>
+
+                </div>
+            }
+        };
         html! {
             <div>
                 <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
@@ -226,9 +234,7 @@ impl Component for Model {
                 <p>{ &self.filter }</p>
                 <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
                 <ul>
-                    { for self.filtered_files.iter().map(|f|{ html! {
-                        <li>{f}</li>
-                    } }) }
+                    { for self.filtered_files.iter().map(filtered_list_item) }
                 </ul>
             </div>
         }

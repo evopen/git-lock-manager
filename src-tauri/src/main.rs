@@ -6,7 +6,7 @@
 use backend_api as api;
 use backend_api::Request;
 use nfd2::Response;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::{Arc, Mutex};
 
@@ -40,15 +40,49 @@ fn get_lfs_files(path: &PathBuf) -> Vec<String> {
         .collect()
 }
 
+fn get_locked_files(path: &str) -> Vec<String> {
+    let output = std::process::Command::new("git")
+        .arg("lfs")
+        .arg("locks")
+        .current_dir(&path)
+        .output()
+        .expect("failed to run git lfs locks");
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|s| String::from(s))
+        .collect()
+}
+
+fn lock_file(repo: &str, file: &str) {
+    let output = std::process::Command::new("git")
+        .arg("lfs")
+        .arg("lock")
+        .arg(&file)
+        .current_dir(&repo)
+        .output()
+        .expect(format!("failed to lock {}", file).as_str());
+}
+
+fn unlock_file(repo: &str, file: &str) {
+    let output = std::process::Command::new("git")
+        .arg("lfs")
+        .arg("unlock")
+        .arg(&file)
+        .current_dir(&repo)
+        .output()
+        .expect(format!("failed to unlock {}", file).as_str());
+}
+
 fn main() {
-    let mut repo = Arc::new(Mutex::new(String::new()));
+    let repo = Arc::new(Mutex::new(String::new()));
     let repo_handler = repo.clone();
-    let mut lfs_files: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let lfs_files: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let lfs_files_handler = lfs_files.clone();
     tauri::AppBuilder::new()
         .invoke_handler(move |_webview, arg| {
-            let mut repo_promise = repo_handler.clone();
-            let mut lfs_files_promise = lfs_files_handler.clone();
+            let repo_promise = repo_handler.clone();
+            let lfs_files_promise = lfs_files_handler.clone();
             match serde_json::from_str::<api::Request>(arg) {
                 Err(e) => Err(e.to_string()),
                 Ok(command) => {
@@ -80,7 +114,7 @@ fn main() {
                             _webview,
                             move || {
                                 Ok(api::Response::GetLockedFiles {
-                                    locked_files: vec!["asdf".to_string(), "asdfefe".to_string()],
+                                    locked_files: get_locked_files(&*repo_promise.lock().unwrap()),
                                 })
                             },
                             callback,
@@ -97,12 +131,39 @@ fn main() {
                                     .lock()
                                     .unwrap()
                                     .iter()
-                                    .filter(|f| f.contains(&filter))
+                                    .filter(|f| f.to_lowercase().contains(&filter.to_lowercase()))
+                                    .take(50)
                                     .cloned()
                                     .collect();
                                 Ok(api::Response::GetFilteredFiles {
                                     filtered_files: filtered_list,
                                 })
+                            },
+                            callback,
+                            error,
+                        ),
+                        Request::LockFile {
+                            path,
+                            callback,
+                            error,
+                        } => tauri::execute_promise(
+                            _webview,
+                            move || {
+                                lock_file(&*repo_promise.lock().unwrap(), &path);
+                                Ok(api::Response::LockFile { path })
+                            },
+                            callback,
+                            error,
+                        ),
+                        Request::UnlockFile {
+                            path,
+                            callback,
+                            error,
+                        } => tauri::execute_promise(
+                            _webview,
+                            move || {
+                                unlock_file(&*repo_promise.lock().unwrap(), &path);
+                                Ok(api::Response::UnlockFile { path })
                             },
                             callback,
                             error,
