@@ -7,6 +7,7 @@ use wasm_bindgen::JsCast;
 use yew::prelude::*;
 use yew::services::ConsoleService;
 use yewtil::future::LinkFuture;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 enum Msg {
@@ -20,6 +21,8 @@ enum Msg {
     FilteredFilesReceived(Vec<String>),
     LockFile(String),
     UnlockFile(String),
+    FileLocked(String),
+    FileUnlocked(String),
 }
 
 enum ListType {
@@ -34,7 +37,7 @@ struct Model {
     value: i64,
     repo: String,
     filter: String,
-    locked_files: Vec<String>,
+    locked_files: HashMap<String, (String, u32)>,
     filtered_files: Vec<String>,
     list_type: ListType,
 }
@@ -108,6 +111,38 @@ pub async fn get_filtered_files(filter: String) -> Result<js_sys::Array, JsValue
     }
 }
 
+#[wasm_bindgen]
+pub async fn unlock_file(path: String) -> Result<String, JsValue> {
+    let tauri = get_tauri().unwrap();
+    let value: JsValue = tauri
+        .promisified(JsValue::from_serde(&api::Request::UnlockFile { path }).unwrap())
+        .unwrap();
+    let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    let response: api::Response = future.await?.into_serde().unwrap();
+    match response {
+        Response::UnlockFile { path } => {
+            Ok(path)
+        }
+        _ => Err(JsValue::from_str("failed to get unlock file response")),
+    }
+}
+
+#[wasm_bindgen]
+pub async fn lock_file(path: String) -> Result<String, JsValue> {
+    let tauri = get_tauri().unwrap();
+    let value: JsValue = tauri
+        .promisified(JsValue::from_serde(&api::Request::LockFile { path }).unwrap())
+        .unwrap();
+    let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    let response: api::Response = future.await?.into_serde().unwrap();
+    match response {
+        Response::LockFile { path } => {
+            Ok(path)
+        }
+        _ => Err(JsValue::from_str("failed to get lock file response")),
+    }
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -118,7 +153,7 @@ impl Component for Model {
             value: 0,
             repo: String::new(),
             filter: String::new(),
-            locked_files: Vec::new(),
+            locked_files: HashMap::new(),
             filtered_files: Vec::new(),
             list_type: ListType::LockedFiles,
         }
@@ -151,6 +186,10 @@ impl Component for Model {
             Msg::RepoPicked { repo } => {
                 if !repo.is_empty() {
                     self.repo = repo;
+                    self.list_type = ListType::LockedFiles;
+                    self.filtered_files.clear();
+                    self.filter.clear();
+                    self.link.send_message(Msg::GetLockedFiles);
                     true
                 } else {
                     false
@@ -177,6 +216,7 @@ impl Component for Model {
                 true
             }
             Msg::GetLockedFiles => {
+                ConsoleService::log("updating");
                 match self.repo.is_empty() {
                     true => ConsoleService::log("did not select git repo yet"),
                     false => {
@@ -194,11 +234,14 @@ impl Component for Model {
                 false
             }
             Msg::LockedFilesReceived(v) => {
-                self.locked_files = v;
-                for s in &self.locked_files {
-                    ConsoleService::log(&s);
+                ConsoleService::log("updated");
+                self.locked_files.clear();
+                for entry in v {
+                    let entry: Vec<String> = entry.split_whitespace().map(|s|{s.to_string()}).collect();
+
+                    self.locked_files.insert(entry.get(0).unwrap().clone(), (entry.get(1).unwrap().clone(), entry.get(2).unwrap()[3..5].parse().unwrap()));
                 }
-                false
+                true
             }
             Msg::FilteredFilesReceived(v) => {
                 self.filtered_files = v;
@@ -208,12 +251,38 @@ impl Component for Model {
                 true
             }
             Msg::LockFile(v) => {
-                ConsoleService::log(&v);
+                ConsoleService::log("locking");
+                if !self.locked_files.contains_key(&v.clone()) {
+                    self.link.send_future(async {
+                        match lock_file(v).await {
+                            Ok(s) => Msg::FileLocked(s),
+                            Err(_) => Msg::FileLocked(String::new()),
+                        }
+                    });
+                }
                 false
             }
             Msg::UnlockFile(v) => {
-                ConsoleService::log(&v);
+                ConsoleService::log("unlocking");
+                if self.locked_files.contains_key(&v.clone()) {
+                    self.link.send_future(async {
+                        match unlock_file(v).await {
+                            Ok(s) => Msg::FileUnlocked(s),
+                            Err(_) => Msg::FileUnlocked(String::new()),
+                        }
+                    });
+                }
                 false
+            }
+            Msg::FileLocked(s) => {
+                ConsoleService::log("locked");
+                self.link.send_message(Msg::GetLockedFiles);
+                true
+            }
+            Msg::FileUnlocked(s) => {
+                ConsoleService::log("unlocked");
+                self.link.send_message(Msg::GetLockedFiles);
+                true
             }
         }
     }
@@ -222,12 +291,18 @@ impl Component for Model {
         // Should only return "true" if new properties are different to
         // previously received properties.
         // This component has no properties so we will always return "false".
+
         false
     }
 
     fn view(&self) -> Html {
         let filtered_list_item = |f: &String| {
-            let (button_text, button_type, event) = if self.locked_files.contains(&f) {
+            let is_locked = self.locked_files.contains_key(&f.clone());
+            let locked_by = match self.locked_files.get(&f.clone()) {
+                None => { "" }
+                Some(v) => { &v.0 }
+            };
+            let (button_text, button_type, event) = if is_locked {
                 (
                     "Unlock",
                     "pure-button button-success",
@@ -240,9 +315,12 @@ impl Component for Model {
                     Msg::LockFile(f.clone()),
                 )
             };
+            let path = f.split_whitespace().next().unwrap();
+
             html! {
                 <tr>
                     <td>{ f }</td>
+                    <td>{locked_by}</td>
                     <td class={"center"}>
                         <button class={button_type} onclick=self.link.callback(move |_|{event.clone()})>{button_text}</button>
                     </td>
@@ -250,21 +328,62 @@ impl Component for Model {
             }
         };
 
-        let filter_table = html! {
-        <div>
-            <table class="pure-table">
-                <thead>
-                    <tr>
-                        <th>{"File Name"}</th>
-                        <th>{"Action"}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    { for self.filtered_files.iter().map(filtered_list_item) }
-                </tbody>
-            </table>
-        </div>
+        let locked_list_item = |f: &String| {
+            let locked_by = match self.locked_files.get(&f.clone()) {
+                None => { "" }
+                Some(v) => { &v.0 }
+            };
+            let f = f.clone();
+            html! {
+                <tr>
+                    <td>{ f.clone() }</td>
+                    <td>{locked_by}</td>
+                    <td class={"center"}>
+                        <button class={"pure-button button-success"} onclick=self.link.callback(move |_|{Msg::UnlockFile(f.clone())})>{"Unlock"}</button>
+                    </td>
+                </tr>
+            }
         };
+
+        let table = match self.list_type {
+            ListType::LockedFiles => {
+                html! {
+                <div>
+                    <table class="pure-table">
+                        <thead>
+                            <tr>
+                                <th>{"File Name"}</th>
+                                <th>{"Locked By"}</th>
+                                <th>{"Action"}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            { for self.locked_files.iter().map(|(v, _)|{v}).map(locked_list_item) }
+                        </tbody>
+                    </table>
+                </div>
+                }
+            }
+            ListType::SearchResult => {
+                html! {
+                    <div>
+                        <table class="pure-table">
+                            <thead>
+                                <tr>
+                                    <th>{"File Name"}</th>
+                                    <th>{"Locked By"}</th>
+                                    <th>{"Action"}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                { for self.filtered_files.iter().map(filtered_list_item) }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        };
+
         html! {
             <div>
                 <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
@@ -275,7 +394,7 @@ impl Component for Model {
                 <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
                 <p>{ &self.filter }</p>
                 <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
-                {filter_table}
+                {table}
             </div>
         }
     }

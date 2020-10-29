@@ -21,7 +21,7 @@ fn pick_repo() -> Option<std::path::PathBuf> {
         .ok()?
         .into_iter()
         .map(|p| p.unwrap().path())
-        .find(|p| p.is_dir() && p.file_name().unwrap().eq(".git"))
+        .find(|p| p.file_name().unwrap().eq(".git"))
         .map(|_| p)
 }
 
