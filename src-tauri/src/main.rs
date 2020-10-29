@@ -13,6 +13,7 @@ use std::process::ExitStatus;
 use std::sync::{Arc, Mutex, RwLock};
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use std::os::windows::process::CommandExt;
 
 fn pick_repo() -> Option<std::path::PathBuf> {
     let p = match nfd2::open_pick_folder(None).unwrap() {
@@ -34,6 +35,7 @@ fn get_lfs_files(path: &PathBuf) -> Vec<String> {
         .arg("lfs")
         .arg("ls-files")
         .arg("-n")
+        .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
         .current_dir(&path)
         .output()
         .expect("failed to run git lfs ls-files");
@@ -49,6 +51,7 @@ fn get_locked_files(path: &str) -> Vec<String> {
         .arg("lfs")
         .arg("locks")
         .current_dir(&path)
+        .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
         .output()
         .expect("failed to run git lfs locks");
     String::from_utf8(output.stdout)
@@ -68,6 +71,7 @@ fn lock_file(repo: &str, file: &str) -> Option<api::LockEntry> {
         .arg(&file)
         .arg("--json")
         .current_dir(&repo)
+        .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
         .output()
         .expect(format!("failed to lock {}", file).as_str());
     match serde_json::from_str::<api::LockEntry>(String::from_utf8(output.stdout).unwrap().as_str())
@@ -89,6 +93,7 @@ fn unlock_file(repo: &str, id: u32) {
         .arg("-i")
         .arg(id.to_string())
         .current_dir(&repo)
+        .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
         .output()
         .expect(format!("failed to unlock {}", id).as_str());
 }

@@ -18,6 +18,7 @@ nfd2 = "0.2.3"
 rayon = "1.5.0"
 anyhow = "1.0.33"
 fuzzy-matcher = "*"
+winapi = "0.3.9"
 
 [target."cfg(windows)".build-dependencies]
 winres = "0.1"
@@ -27,7 +28,7 @@ embedded-server = [ "tauri/embedded-server" ]
 no-server = [ "tauri/no-server" ]
 
 [[bin]]
-name = "app"
+name = "git-lock-manager"
 path = "src/main.rs"
 
 [profile.release]

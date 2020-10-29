@@ -34,21 +34,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
 
 [[package]]
-name = "app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "backend-api",
- "fuzzy-matcher",
- "nfd2",
- "rayon",
- "serde",
- "serde_json",
- "tauri",
- "winres",
-]
-
-[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -624,6 +609,22 @@ name = "gimli"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aaf91faf136cb47367fa430cd46e37a788775e7fa104f8b4bcb3861dc389b724"
+
+[[package]]
+name = "git-lock-manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "backend-api",
+ "fuzzy-matcher",
+ "nfd2",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tauri",
+ "winapi",
+ "winres",
+]
 
 [[package]]
 name = "gloo"
