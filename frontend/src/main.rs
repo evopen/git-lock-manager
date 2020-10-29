@@ -8,7 +8,7 @@ use yew::prelude::*;
 use yew::services::ConsoleService;
 use yewtil::future::LinkFuture;
 use std::collections::HashMap;
-use wasm_bindgen::__rt::std::time::{SystemTime, Duration};
+use std::time::SystemTime;
 
 #[derive(Clone, Debug)]
 enum Msg {
@@ -146,6 +146,9 @@ pub async fn lock_file(path: String) -> Result<String, JsValue> {
     }
 }
 
+#[wasm_bindgen]
+pub async fn get_time(path: String) -> Result<u64, JsValue> { Ok(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()) }
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -220,7 +223,7 @@ impl Component for Model {
                 true
             }
             Msg::GetLockedFiles => {
-                if web_sys::window().unwrap().performance().unwrap().now().duration_since(self.update_time).unwrap() > Duration::from_secs(10) {
+                if SystemTime::UNIX_EPOCH.duration_since(self.update_time).unwrap() > Duration::from_secs(10) {
                     ConsoleService::log("updating");
                     match self.repo.is_empty() {
                         true => ConsoleService::log("did not select git repo yet"),
