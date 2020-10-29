@@ -22,7 +22,7 @@ enum Msg {
     FilteredFilesReceived(Vec<String>),
     LockFile(String),
     UnlockFile(String),
-    FileLocked(String),
+    FileLocked(Option<api::LockEntry>),
     FileUnlocked(String),
     UnlockAll,
 }
@@ -139,7 +139,7 @@ pub async fn lock_file(path: String) -> Result<String, JsValue> {
     ConsoleService::log("locking in async");
     let response: api::Response = future.await?.into_serde().unwrap();
     match response {
-        Response::LockFile { path } => Ok(path),
+        Response::LockFile { lock_entry } => Ok(serde_json::to_string(&lock_entry).unwrap()),
         _ => Err(JsValue::from_str("failed to get lock file response")),
     }
 }
@@ -277,8 +277,12 @@ impl Component for Model {
                 if !self.locked_files.contains_key(&v.clone()) {
                     self.link.send_future(async {
                         match lock_file(v).await {
-                            Ok(s) => Msg::FileLocked(s),
-                            Err(_) => Msg::FileLocked(String::new()),
+                            Ok(s) => {
+                                let lock_entry =
+                                    serde_json::from_str::<api::LockEntry>(s.as_str()).unwrap();
+                                Msg::FileLocked(Some(lock_entry))
+                            }
+                            Err(_) => Msg::FileLocked(None),
                         }
                     });
                 }
@@ -297,10 +301,15 @@ impl Component for Model {
                 false
             }
             Msg::FileLocked(s) => {
-                ConsoleService::log(format!("{} locked", s).as_str());
-                self.locked_files.insert(s, ("".to_string(), 0));
-                self.link.send_future(async { Msg::GetLockedFiles });
-                true
+                if s.is_none() {
+                    false
+                } else {
+                    let s = s.unwrap();
+                    ConsoleService::log(format!("{} locked", s.path).as_str());
+                    self.locked_files.insert(s.path, (s.owner.name, s.id.parse().unwrap()));
+                    self.link.send_future(async { Msg::GetLockedFiles });
+                    true
+                }
             }
             Msg::FileUnlocked(s) => {
                 ConsoleService::log(format!("{} unlocked", s).as_str());

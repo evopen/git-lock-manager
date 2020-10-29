@@ -3,11 +3,11 @@
     windows_subsystem = "windows"
 )]
 
-mod lfs;
-
+use anyhow::{anyhow, Result};
 use backend_api as api;
-use backend_api::Request;
+use backend_api::{LockEntry, Request};
 use nfd2::Response;
+use serde_json::Error;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::{Arc, Mutex, RwLock};
@@ -56,17 +56,26 @@ fn get_locked_files(path: &str) -> Vec<String> {
         .collect()
 }
 
-fn lock_file(repo: &str, file: &str) {
+fn lock_file(repo: &str, file: &str) -> Option<api::LockEntry> {
     let repo = repo.to_string();
     let file = file.to_string();
     println!("locking {}", file);
-    std::process::Command::new("git")
+    let output = std::process::Command::new("git")
         .arg("lfs")
         .arg("lock")
         .arg(&file)
+        .arg("--json")
         .current_dir(&repo)
         .output()
         .expect(format!("failed to lock {}", file).as_str());
+    match serde_json::from_str::<api::LockEntry>(String::from_utf8(output.stdout).unwrap().as_str())
+    {
+        Ok(e) => Some(e),
+        Err(_) => {
+            println!("failed");
+            None
+        }
+    }
 }
 
 fn unlock_file(repo: &str, id: u32) {
@@ -158,9 +167,9 @@ fn main() {
                             println!("received lock request");
                             tauri::execute_promise(
                                 _webview,
-                                move || {
-                                    lock_file(&*repo_promise.read().unwrap(), &path);
-                                    Ok(api::Response::LockFile { path })
+                                move || match lock_file(&*repo_promise.read().unwrap(), &path) {
+                                    None => Err(anyhow!("failed to lock file")),
+                                    Some(lock_entry) => Ok(api::Response::LockFile { lock_entry }),
                                 },
                                 callback,
                                 error,

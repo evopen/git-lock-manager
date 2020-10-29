@@ -1,5 +1,19 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Owner {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LockEntry {
+    pub id: String,
+    pub path: String,
+    pub owner: Owner,
+    pub locked_at: String,
+}
+
+
 #[cfg(target_arch = "wasm32")]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
@@ -50,6 +64,8 @@ pub enum Response {
     PickRepo { path: String },
     GetLockedFiles { locked_files: Vec<String> },
     GetFilteredFiles { filtered_files: Vec<String> },
-    LockFile { path: String },
+    LockFile { lock_entry: LockEntry },
     UnlockFile { id: u32 },
 }
+
+

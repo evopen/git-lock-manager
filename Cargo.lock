@@ -37,6 +37,7 @@ checksum = "33954243bd79057c2de7338850b85983a44588021f8a5fee574a8888c6de4344"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "backend-api",
  "nfd2",
  "rayon",
@@ -481,6 +482,8 @@ version = "0.1.0"
 dependencies = [
  "backend-api",
  "js-sys",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
