@@ -16,3 +16,6 @@ yew = "0.17"
 yewtil = "0.3.2"
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
+
+[profile.release]
+lto = true

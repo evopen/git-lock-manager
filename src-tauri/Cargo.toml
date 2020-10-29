@@ -1,11 +1,11 @@
 [package]
-name = "app"
+name = "git-lock-manager"
 version = "0.1.0"
-description = "A Tauri App"
+description = "A Git LFS lock GUI"
 authors = [ "evopen <520dhh@gmail.com>" ]
 license = ""
 repository = ""
-default-run = "app"
+default-run = "git-lock-manager"
 edition = "2018"
 build = "src/build.rs"
 
@@ -29,3 +29,6 @@ no-server = [ "tauri/no-server" ]
 [[bin]]
 name = "app"
 path = "src/main.rs"
+
+[profile.release]
+lto = true
