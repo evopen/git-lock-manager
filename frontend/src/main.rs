@@ -8,6 +8,7 @@ use yew::prelude::*;
 use yew::services::ConsoleService;
 use yewtil::future::LinkFuture;
 use std::collections::HashMap;
+use wasm_bindgen::__rt::std::time::{SystemTime, Duration};
 
 #[derive(Clone, Debug)]
 enum Msg {
@@ -23,6 +24,7 @@ enum Msg {
     UnlockFile(String),
     FileLocked(String),
     FileUnlocked(String),
+    UnlockAll,
 }
 
 enum ListType {
@@ -40,6 +42,7 @@ struct Model {
     locked_files: HashMap<String, (String, u32)>,
     filtered_files: Vec<String>,
     list_type: ListType,
+    update_time: SystemTime,
 }
 
 #[wasm_bindgen]
@@ -156,6 +159,7 @@ impl Component for Model {
             locked_files: HashMap::new(),
             filtered_files: Vec::new(),
             list_type: ListType::LockedFiles,
+            update_time: SystemTime::UNIX_EPOCH,
         }
     }
 
@@ -216,20 +220,22 @@ impl Component for Model {
                 true
             }
             Msg::GetLockedFiles => {
-                ConsoleService::log("updating");
-                match self.repo.is_empty() {
-                    true => ConsoleService::log("did not select git repo yet"),
-                    false => {
-                        self.link.send_future(async {
-                            match get_locked_files().await {
-                                Ok(arr) => Msg::LockedFilesReceived(
-                                    arr.iter().map(|v| v.as_string().unwrap()).collect(),
-                                ),
-                                Err(_) => Msg::LockedFilesReceived(Vec::new()),
-                            }
-                        });
+                if web_sys::window().unwrap().performance().unwrap().now().duration_since(self.update_time).unwrap() > Duration::from_secs(10) {
+                    ConsoleService::log("updating");
+                    match self.repo.is_empty() {
+                        true => ConsoleService::log("did not select git repo yet"),
+                        false => {
+                            self.link.send_future(async {
+                                match get_locked_files().await {
+                                    Ok(arr) => Msg::LockedFilesReceived(
+                                        arr.iter().map(|v| v.as_string().unwrap()).collect(),
+                                    ),
+                                    Err(_) => Msg::LockedFilesReceived(Vec::new()),
+                                }
+                            });
+                        }
                     }
-                }
+                } else { ConsoleService::log("skipping"); }
 
                 false
             }
@@ -237,7 +243,7 @@ impl Component for Model {
                 ConsoleService::log("updated");
                 self.locked_files.clear();
                 for entry in v {
-                    let entry: Vec<String> = entry.split_whitespace().map(|s|{s.to_string()}).collect();
+                    let entry: Vec<String> = entry.split_whitespace().map(|s| { s.to_string() }).collect();
 
                     self.locked_files.insert(entry.get(0).unwrap().clone(), (entry.get(1).unwrap().clone(), entry.get(2).unwrap()[3..5].parse().unwrap()));
                 }
@@ -278,14 +284,23 @@ impl Component for Model {
             Msg::FileLocked(s) => {
                 ConsoleService::log(format!("{} locked", s).as_str());
                 self.locked_files.insert(s, ("".to_string(), 0));
-                self.link.send_future(async {Msg::GetLockedFiles});
+                self.link.send_future(async { Msg::GetLockedFiles });
                 true
             }
             Msg::FileUnlocked(s) => {
                 ConsoleService::log(format!("{} unlocked", s).as_str());
                 self.locked_files.remove(&s);
-                self.link.send_future(async {Msg::GetLockedFiles});
+                self.link.send_future(async { Msg::GetLockedFiles });
                 true
+            }
+            Msg::UnlockAll => {
+                for (k, v) in self.locked_files.iter() {
+                    let k = k.clone();
+                    self.link.send_future(async move {
+                        Msg::UnlockFile(k)
+                    });
+                }
+                false
             }
         }
     }
@@ -397,6 +412,7 @@ impl Component for Model {
                 <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
                 <p>{ &self.filter }</p>
                 <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
+                <button onclick=self.link.callback(|_| Msg::UnlockAll)>{ "Unlock All" }</button>
                 {table}
             </div>
         }

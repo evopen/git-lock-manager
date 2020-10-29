@@ -11,6 +11,6 @@ backend-api = {path = "../backend-api"}
 js-sys = "0.3.45"
 wasm-bindgen = {version = "0.2.68", features = ["serde-serialize"]}
 wasm-bindgen-futures = "0.4.18"
-web-sys = "0.3.45"
+web-sys = { version = "0.3.45", features = ["Performance"] }
 yew = "0.17"
 yewtil = "0.3.2"
