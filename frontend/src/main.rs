@@ -226,7 +226,7 @@ impl Component for Model {
                 true
             }
             Msg::GetLockedFiles => {
-                if js_sys::Date::now() / 1000.0 - self.update_time > 10.0 {
+                // if js_sys::Date::now() / 1000.0 - self.update_time > 10.0 {
                     ConsoleService::log("updating");
                     match self.repo.is_empty() {
                         true => ConsoleService::log("did not select git repo yet"),
@@ -241,10 +241,10 @@ impl Component for Model {
                             });
                         }
                     }
-                    self.update_time = js_sys::Date::now() / 1000.0;
-                } else {
-                    ConsoleService::log("skipping");
-                }
+                //     self.update_time = js_sys::Date::now() / 1000.0;
+                // } else {
+                //     ConsoleService::log("skipping");
+                // }
 
                 false
             }
