@@ -306,7 +306,8 @@ impl Component for Model {
                 } else {
                     let s = s.unwrap();
                     ConsoleService::log(format!("{} locked", s.path).as_str());
-                    self.locked_files.insert(s.path, (s.owner.name, s.id.parse().unwrap()));
+                    self.locked_files
+                        .insert(s.path, (s.owner.name, s.id.parse().unwrap()));
                     self.link.send_future(async { Msg::GetLockedFiles });
                     true
                 }
@@ -425,15 +426,31 @@ impl Component for Model {
         };
 
         html! {
-            <div>
-                <button onclick=self.link.callback(|_| Msg::PickRepo)>{ "Pick Repo" }</button>
-                <p>{ &self.repo }</p>
-                <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
-                <p>{ &self.filter }</p>
-                <button onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Get locked files" }</button>
-                <button onclick=self.link.callback(|_| Msg::UnlockAll)>{ "Unlock All" }</button>
-                {table}
+        <div>
+            <div class={"pure-g"}>
+                <div class="pure-u-1-5">
+                    <button class={"pure-button button-warning"} onclick=self.link.callback(|_| Msg::PickRepo)>{ "Pick Repo" }</button>
+                </div>
+                <div class="pure-u-2-5">
+                    <button class={"pure-button pure-button-disabled"} onclick=self.link.callback(|_| Msg::PickRepo)>{ &self.repo }</button>
+                </div>
+                <div class="pure-u-1-5">
+                    <button class={"pure-button button-primary"} onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Force Refresh files" }</button>
+                </div>
             </div>
+            <div class={"pure-g"}>
+            <div class="pure-u-1">
+                <form class="pure-form">
+                 <fieldset>
+                    <input type="text" value={&self.filter} class={"pure-input-2-3"} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
+                    <button class={"pure-button button-secondary pure-input-1-3"} onclick=self.link.callback(|_| Msg::UnlockAll)>{ "Unlock All" }</button>
+                 </fieldset>
+                </form>
+            </div>
+
+            </div>
+             {table}
+        </div>
         }
     }
 }
