@@ -11,6 +11,8 @@ use serde_json::Error;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::{Arc, Mutex, RwLock};
+use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::skim::SkimMatcherV2;
 
 fn pick_repo() -> Option<std::path::PathBuf> {
     let p = match nfd2::open_pick_folder(None).unwrap() {
@@ -96,10 +98,13 @@ fn main() {
     let repo_handler = repo.clone();
     let lfs_files: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let lfs_files_handler = lfs_files.clone();
+    let matcher = Arc::new(Mutex::new(SkimMatcherV2::default()));
+    let matcher_handler = matcher.clone();
     tauri::AppBuilder::new()
         .invoke_handler(move |_webview, arg| {
             let repo_promise = repo_handler.clone();
             let lfs_files_promise = lfs_files_handler.clone();
+            let matcher_promise = matcher_handler.clone();
             match serde_json::from_str::<api::Request>(arg) {
                 Err(e) => Err(e.to_string()),
                 Ok(command) => {
@@ -148,7 +153,7 @@ fn main() {
                                     .lock()
                                     .unwrap()
                                     .iter()
-                                    .filter(|f| f.to_lowercase().contains(&filter.to_lowercase()))
+                                    .filter(|f| matcher_promise.lock().unwrap().fuzzy_match(f.to_lowercase().as_str(), &filter.to_lowercase().as_str()).is_some())
                                     .take(50)
                                     .cloned()
                                     .collect();

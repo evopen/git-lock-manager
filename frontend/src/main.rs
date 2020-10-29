@@ -426,10 +426,7 @@ impl Component for Model {
 
         html! {
             <div>
-                <button onclick=self.link.callback(|_| Msg::AddOne)>{ "+1" }</button>
-                <p>{ self.value }</p>
                 <button onclick=self.link.callback(|_| Msg::PickRepo)>{ "Pick Repo" }</button>
-                <button onclick=self.link.callback(|_| Msg::Echo{message: String::from("fuck")})>{ "Echo" }</button>
                 <p>{ &self.repo }</p>
                 <input type="text" value={&self.filter} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
                 <p>{ &self.filter }</p>
