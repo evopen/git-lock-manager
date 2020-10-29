@@ -39,6 +39,7 @@ version = "0.1.0"
 dependencies = [
  "backend-api",
  "nfd2",
+ "rayon",
  "serde",
  "serde_json",
  "tauri",

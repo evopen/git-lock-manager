@@ -2,13 +2,13 @@
 
 use backend_api as api;
 use backend_api::Response;
+use std::collections::HashMap;
+use std::time::{Duration, SystemTime};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use yew::prelude::*;
 use yew::services::ConsoleService;
 use yewtil::future::LinkFuture;
-use std::collections::HashMap;
-use std::time::SystemTime;
 
 #[derive(Clone, Debug)]
 enum Msg {
@@ -42,7 +42,7 @@ struct Model {
     locked_files: HashMap<String, (String, u32)>,
     filtered_files: Vec<String>,
     list_type: ListType,
-    update_time: SystemTime,
+    update_time: f64,
 }
 
 #[wasm_bindgen]
@@ -121,11 +121,10 @@ pub async fn unlock_file(id: u32) -> Result<u32, JsValue> {
         .promisified(JsValue::from_serde(&api::Request::UnlockFile { id }).unwrap())
         .unwrap();
     let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    ConsoleService::log("unlocking in async");
     let response: api::Response = future.await?.into_serde().unwrap();
     match response {
-        Response::UnlockFile { id } => {
-            Ok(id)
-        }
+        Response::UnlockFile { id } => Ok(id),
         _ => Err(JsValue::from_str("failed to get unlock file response")),
     }
 }
@@ -137,17 +136,21 @@ pub async fn lock_file(path: String) -> Result<String, JsValue> {
         .promisified(JsValue::from_serde(&api::Request::LockFile { path }).unwrap())
         .unwrap();
     let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    ConsoleService::log("locking in async");
     let response: api::Response = future.await?.into_serde().unwrap();
     match response {
-        Response::LockFile { path } => {
-            Ok(path)
-        }
+        Response::LockFile { path } => Ok(path),
         _ => Err(JsValue::from_str("failed to get lock file response")),
     }
 }
 
-#[wasm_bindgen]
-pub async fn get_time(path: String) -> Result<u64, JsValue> { Ok(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()) }
+// #[wasm_bindgen]
+// pub async fn get_time(path: String) -> Result<u64, JsValue> {
+//     Ok(SystemTime::now()
+//         .duration_since(SystemTime::UNIX_EPOCH)
+//         .unwrap()
+//         .as_secs())
+// }
 
 impl Component for Model {
     type Message = Msg;
@@ -162,7 +165,7 @@ impl Component for Model {
             locked_files: HashMap::new(),
             filtered_files: Vec::new(),
             list_type: ListType::LockedFiles,
-            update_time: SystemTime::UNIX_EPOCH,
+            update_time: 0.0,
         }
     }
 
@@ -223,7 +226,7 @@ impl Component for Model {
                 true
             }
             Msg::GetLockedFiles => {
-                if SystemTime::UNIX_EPOCH.duration_since(self.update_time).unwrap() > Duration::from_secs(10) {
+                if js_sys::Date::now() / 1000.0 - self.update_time > 10.0 {
                     ConsoleService::log("updating");
                     match self.repo.is_empty() {
                         true => ConsoleService::log("did not select git repo yet"),
@@ -238,7 +241,10 @@ impl Component for Model {
                             });
                         }
                     }
-                } else { ConsoleService::log("skipping"); }
+                    self.update_time = js_sys::Date::now() / 1000.0;
+                } else {
+                    ConsoleService::log("skipping");
+                }
 
                 false
             }
@@ -246,9 +252,16 @@ impl Component for Model {
                 ConsoleService::log("updated");
                 self.locked_files.clear();
                 for entry in v {
-                    let entry: Vec<String> = entry.split_whitespace().map(|s| { s.to_string() }).collect();
+                    let entry: Vec<String> =
+                        entry.split_whitespace().map(|s| s.to_string()).collect();
 
-                    self.locked_files.insert(entry.get(0).unwrap().clone(), (entry.get(1).unwrap().clone(), entry.get(2).unwrap()[3..5].parse().unwrap()));
+                    self.locked_files.insert(
+                        entry.get(0).unwrap().clone(),
+                        (
+                            entry.get(1).unwrap().clone(),
+                            entry.get(2).unwrap()[3..].parse().unwrap(),
+                        ),
+                    );
                 }
                 true
             }
@@ -272,7 +285,6 @@ impl Component for Model {
                 false
             }
             Msg::UnlockFile(v) => {
-                ConsoleService::log("unlocking");
                 if self.locked_files.contains_key(&v.clone()) {
                     let id = self.locked_files.get(&v).unwrap().1;
                     self.link.send_future(async move {
@@ -299,9 +311,7 @@ impl Component for Model {
             Msg::UnlockAll => {
                 for (k, v) in self.locked_files.iter() {
                     let k = k.clone();
-                    self.link.send_future(async move {
-                        Msg::UnlockFile(k)
-                    });
+                    self.link.send_future(async move { Msg::UnlockFile(k) });
                 }
                 false
             }
@@ -320,8 +330,8 @@ impl Component for Model {
         let filtered_list_item = |f: &String| {
             let is_locked = self.locked_files.contains_key(&f.clone());
             let locked_by = match self.locked_files.get(&f.clone()) {
-                None => { "" }
-                Some(v) => { &v.0 }
+                None => "",
+                Some(v) => &v.0,
             };
             let (button_text, button_type, event) = if is_locked {
                 (
@@ -351,8 +361,8 @@ impl Component for Model {
 
         let locked_list_item = |f: &String| {
             let locked_by = match self.locked_files.get(&f.clone()) {
-                None => { "" }
-                Some(v) => { &v.0 }
+                None => "",
+                Some(v) => &v.0,
             };
             let f = f.clone();
             html! {

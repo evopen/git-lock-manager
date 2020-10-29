@@ -3,12 +3,14 @@
     windows_subsystem = "windows"
 )]
 
+mod lfs;
+
 use backend_api as api;
 use backend_api::Request;
 use nfd2::Response;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 fn pick_repo() -> Option<std::path::PathBuf> {
     let p = match nfd2::open_pick_folder(None).unwrap() {
@@ -55,8 +57,10 @@ fn get_locked_files(path: &str) -> Vec<String> {
 }
 
 fn lock_file(repo: &str, file: &str) {
+    let repo = repo.to_string();
+    let file = file.to_string();
     println!("locking {}", file);
-    let output = std::process::Command::new("git")
+    std::process::Command::new("git")
         .arg("lfs")
         .arg("lock")
         .arg(&file)
@@ -66,6 +70,7 @@ fn lock_file(repo: &str, file: &str) {
 }
 
 fn unlock_file(repo: &str, id: u32) {
+    let repo = repo.to_string();
     println!("unlocking {}", id);
     let output = std::process::Command::new("git")
         .arg("lfs")
@@ -78,7 +83,7 @@ fn unlock_file(repo: &str, id: u32) {
 }
 
 fn main() {
-    let repo = Arc::new(Mutex::new(String::new()));
+    let repo = Arc::new(RwLock::new(String::new()));
     let repo_handler = repo.clone();
     let lfs_files: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let lfs_files_handler = lfs_files.clone();
@@ -102,11 +107,11 @@ fn main() {
                                     path: String::new(),
                                 }),
                                 Some(p) => {
-                                    *repo_promise.lock().unwrap() =
+                                    *repo_promise.write().unwrap() =
                                         String::from(p.to_str().unwrap());
                                     *lfs_files_promise.lock().unwrap() = get_lfs_files(&p);
                                     Ok(api::Response::PickRepo {
-                                        path: repo_promise.lock().unwrap().clone(),
+                                        path: repo_promise.read().unwrap().clone(),
                                     })
                                 }
                             },
@@ -117,7 +122,7 @@ fn main() {
                             _webview,
                             move || {
                                 Ok(api::Response::GetLockedFiles {
-                                    locked_files: get_locked_files(&*repo_promise.lock().unwrap()),
+                                    locked_files: get_locked_files(&*repo_promise.read().unwrap()),
                                 })
                             },
                             callback,
@@ -149,28 +154,34 @@ fn main() {
                             path,
                             callback,
                             error,
-                        } => tauri::execute_promise(
-                            _webview,
-                            move || {
-                                lock_file(&*repo_promise.lock().unwrap(), &path);
-                                Ok(api::Response::LockFile { path })
-                            },
-                            callback,
-                            error,
-                        ),
+                        } => {
+                            println!("received lock request");
+                            tauri::execute_promise(
+                                _webview,
+                                move || {
+                                    lock_file(&*repo_promise.read().unwrap(), &path);
+                                    Ok(api::Response::LockFile { path })
+                                },
+                                callback,
+                                error,
+                            )
+                        }
                         Request::UnlockFile {
                             id,
                             callback,
                             error,
-                        } => tauri::execute_promise(
-                            _webview,
-                            move || {
-                                unlock_file(&*repo_promise.lock().unwrap(), id);
-                                Ok(api::Response::UnlockFile { id })
-                            },
-                            callback,
-                            error,
-                        ),
+                        } => {
+                            println!("received unlock request");
+                            tauri::execute_promise(
+                                _webview,
+                                move || {
+                                    unlock_file(&*repo_promise.read().unwrap(), id);
+                                    Ok(api::Response::UnlockFile { id })
+                                },
+                                callback,
+                                error,
+                            )
+                        }
                     }
                     Ok(())
                 }
