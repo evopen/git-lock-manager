@@ -55,6 +55,7 @@ fn get_locked_files(path: &str) -> Vec<String> {
 }
 
 fn lock_file(repo: &str, file: &str) {
+    println!("locking {}", file);
     let output = std::process::Command::new("git")
         .arg("lfs")
         .arg("lock")
@@ -64,14 +65,16 @@ fn lock_file(repo: &str, file: &str) {
         .expect(format!("failed to lock {}", file).as_str());
 }
 
-fn unlock_file(repo: &str, file: &str) {
+fn unlock_file(repo: &str, id: u32) {
+    println!("unlocking {}", id);
     let output = std::process::Command::new("git")
         .arg("lfs")
         .arg("unlock")
-        .arg(&file)
+        .arg("-i")
+        .arg(id.to_string())
         .current_dir(&repo)
         .output()
-        .expect(format!("failed to unlock {}", file).as_str());
+        .expect(format!("failed to unlock {}", id).as_str());
 }
 
 fn main() {
@@ -156,14 +159,14 @@ fn main() {
                             error,
                         ),
                         Request::UnlockFile {
-                            path,
+                            id,
                             callback,
                             error,
                         } => tauri::execute_promise(
                             _webview,
                             move || {
-                                unlock_file(&*repo_promise.lock().unwrap(), &path);
-                                Ok(api::Response::UnlockFile { path })
+                                unlock_file(&*repo_promise.lock().unwrap(), id);
+                                Ok(api::Response::UnlockFile { id })
                             },
                             callback,
                             error,

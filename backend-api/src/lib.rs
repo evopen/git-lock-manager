@@ -9,7 +9,7 @@ pub enum Request {
     GetLockedFiles,
     GetFilteredFiles { filter: String },
     LockFile { path: String },
-    UnlockFile { path: String },
+    UnlockFile { id: u32 },
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -38,7 +38,7 @@ pub enum Request {
         error: String,
     },
     UnlockFile {
-        path: String,
+        id: u32,
         callback: String,
         error: String,
     },
@@ -51,5 +51,5 @@ pub enum Response {
     GetLockedFiles { locked_files: Vec<String> },
     GetFilteredFiles { filtered_files: Vec<String> },
     LockFile { path: String },
-    UnlockFile { path: String },
+    UnlockFile { id: u32 },
 }

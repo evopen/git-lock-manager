@@ -112,16 +112,16 @@ pub async fn get_filtered_files(filter: String) -> Result<js_sys::Array, JsValue
 }
 
 #[wasm_bindgen]
-pub async fn unlock_file(path: String) -> Result<String, JsValue> {
+pub async fn unlock_file(id: u32) -> Result<u32, JsValue> {
     let tauri = get_tauri().unwrap();
     let value: JsValue = tauri
-        .promisified(JsValue::from_serde(&api::Request::UnlockFile { path }).unwrap())
+        .promisified(JsValue::from_serde(&api::Request::UnlockFile { id }).unwrap())
         .unwrap();
     let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
     let response: api::Response = future.await?.into_serde().unwrap();
     match response {
-        Response::UnlockFile { path } => {
-            Ok(path)
+        Response::UnlockFile { id } => {
+            Ok(id)
         }
         _ => Err(JsValue::from_str("failed to get unlock file response")),
     }
@@ -265,9 +265,10 @@ impl Component for Model {
             Msg::UnlockFile(v) => {
                 ConsoleService::log("unlocking");
                 if self.locked_files.contains_key(&v.clone()) {
-                    self.link.send_future(async {
-                        match unlock_file(v).await {
-                            Ok(s) => Msg::FileUnlocked(s),
+                    let id = self.locked_files.get(&v).unwrap().1;
+                    self.link.send_future(async move {
+                        match unlock_file(id).await {
+                            Ok(s) => Msg::FileUnlocked(v),
                             Err(_) => Msg::FileUnlocked(String::new()),
                         }
                     });
@@ -275,13 +276,15 @@ impl Component for Model {
                 false
             }
             Msg::FileLocked(s) => {
-                ConsoleService::log("locked");
-                self.link.send_message(Msg::GetLockedFiles);
+                ConsoleService::log(format!("{} locked", s).as_str());
+                self.locked_files.insert(s, ("".to_string(), 0));
+                self.link.send_future(async {Msg::GetLockedFiles});
                 true
             }
             Msg::FileUnlocked(s) => {
-                ConsoleService::log("unlocked");
-                self.link.send_message(Msg::GetLockedFiles);
+                ConsoleService::log(format!("{} unlocked", s).as_str());
+                self.locked_files.remove(&s);
+                self.link.send_future(async {Msg::GetLockedFiles});
                 true
             }
         }
