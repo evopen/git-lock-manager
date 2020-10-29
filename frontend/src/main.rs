@@ -443,7 +443,7 @@ impl Component for Model {
                 <form class="pure-form">
                  <fieldset>
                     <input type="text" value={&self.filter} class={"pure-input-2-3"} placeholder="Type Here" oninput=self.link.callback(|e: InputData| Msg::FilterChanged(e.value))/>
-                    <button class={"pure-button button-secondary pure-input-1-3"} onclick=self.link.callback(|_| Msg::UnlockAll)>{ "Unlock All" }</button>
+                    <button type="button" class={"pure-button button-secondary pure-input-1-3"} onclick=self.link.callback(|_| Msg::UnlockAll)>{ "Unlock All" }</button>
                  </fieldset>
                 </form>
             </div>
