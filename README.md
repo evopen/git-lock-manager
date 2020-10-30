@@ -2,7 +2,7 @@
 
 A git lfs lock gui
 
-Written in pure rust, blazing fast with minimum binary size (2MB).
+Written in pure rust, blazing fast with minimum binary size (1MB).
 
 # Prerequisites
 Install Microsoft [webview2 runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)
