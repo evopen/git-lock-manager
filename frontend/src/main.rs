@@ -435,7 +435,7 @@ impl Component for Model {
                     <button class={"pure-button pure-button-disabled"} onclick=self.link.callback(|_| Msg::PickRepo)>{ &self.repo }</button>
                 </div>
                 <div class="pure-u-1-5">
-                    <button class={"pure-button button-primary"} onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Force Refresh files" }</button>
+                    <button class={"pure-button button-primary"} onclick=self.link.callback(|_| Msg::GetLockedFiles)>{ "Force Refresh Locked Files" }</button>
                 </div>
             </div>
             <div class={"pure-g"}>
