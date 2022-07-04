@@ -252,13 +252,14 @@ impl Component for Model {
                 ConsoleService::log(&format!("updated {:?}", &v));
                 self.locked_files.clear();
                 for entry in v {
-                    let entry: Vec<String> = entry.split('\t').map(|s| s.to_string()).collect();
+                    let entry: Vec<String> =
+                        entry.split_whitespace().map(|s| s.to_string()).collect();
 
                     self.locked_files.insert(
                         entry.get(0).unwrap().clone(),
                         (
-                            entry.get(1).unwrap().clone(),
-                            entry.get(2).unwrap()[3..].parse().unwrap(),
+                            entry[1..entry.len() - 1].join(" "),
+                            entry[entry.len() - 1][3..].parse().unwrap(),
                         ),
                     );
                 }
