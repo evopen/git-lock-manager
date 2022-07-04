@@ -227,20 +227,20 @@ impl Component for Model {
             }
             Msg::GetLockedFiles => {
                 // if js_sys::Date::now() / 1000.0 - self.update_time > 10.0 {
-                    ConsoleService::log("updating");
-                    match self.repo.is_empty() {
-                        true => ConsoleService::log("did not select git repo yet"),
-                        false => {
-                            self.link.send_future(async {
-                                match get_locked_files().await {
-                                    Ok(arr) => Msg::LockedFilesReceived(
-                                        arr.iter().map(|v| v.as_string().unwrap()).collect(),
-                                    ),
-                                    Err(_) => Msg::LockedFilesReceived(Vec::new()),
-                                }
-                            });
-                        }
+                ConsoleService::log("updating");
+                match self.repo.is_empty() {
+                    true => ConsoleService::log("did not select git repo yet"),
+                    false => {
+                        self.link.send_future(async {
+                            match get_locked_files().await {
+                                Ok(arr) => Msg::LockedFilesReceived(
+                                    arr.iter().map(|v| v.as_string().unwrap()).collect(),
+                                ),
+                                Err(_) => Msg::LockedFilesReceived(Vec::new()),
+                            }
+                        });
                     }
+                }
                 //     self.update_time = js_sys::Date::now() / 1000.0;
                 // } else {
                 //     ConsoleService::log("skipping");

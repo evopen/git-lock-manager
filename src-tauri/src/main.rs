@@ -6,14 +6,14 @@
 use anyhow::{anyhow, Result};
 use backend_api as api;
 use backend_api::{LockEntry, Request};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use nfd2::Response;
 use serde_json::Error;
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::{Arc, Mutex, RwLock};
-use fuzzy_matcher::FuzzyMatcher;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use std::os::windows::process::CommandExt;
 
 fn pick_repo() -> Option<std::path::PathBuf> {
     let p = match nfd2::open_pick_folder(None).unwrap() {
@@ -47,6 +47,7 @@ fn get_lfs_files(path: &PathBuf) -> Vec<String> {
 }
 
 fn get_locked_files(path: &str) -> Vec<String> {
+    println!("getting files");
     let output = std::process::Command::new("git")
         .arg("lfs")
         .arg("locks")
@@ -159,7 +160,16 @@ fn main() {
                                     .lock()
                                     .unwrap()
                                     .iter()
-                                    .filter(|f| matcher_promise.lock().unwrap().fuzzy_match(f.to_lowercase().as_str(), &filter.to_lowercase().as_str()).is_some())
+                                    .filter(|f| {
+                                        matcher_promise
+                                            .lock()
+                                            .unwrap()
+                                            .fuzzy_match(
+                                                f.to_lowercase().as_str(),
+                                                &filter.to_lowercase().as_str(),
+                                            )
+                                            .is_some()
+                                    })
                                     .take(50)
                                     .cloned()
                                     .collect();
