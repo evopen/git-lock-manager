@@ -30,7 +30,7 @@ fn pick_repo() -> Option<std::path::PathBuf> {
         .map(|_| p)
 }
 
-fn get_lfs_files(path: &PathBuf) -> Vec<String> {
+fn get_lfs_files(path: &Path) -> Vec<String> {
     let output = std::process::Command::new("git")
         .arg("lfs")
         .arg("ls-files")
@@ -101,9 +101,24 @@ fn unlock_file(repo: &str, id: u32) {
 }
 
 fn main() {
-    let repo = Arc::new(RwLock::new(String::new()));
-    let repo_handler = repo.clone();
+    let current_dir = std::env::current_dir().unwrap_or_default();
+    // let current_dir = current_dir.parent().unwrap();
+    println!("current_dir {}", current_dir.to_str().unwrap());
     let lfs_files: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let mut default_path = String::new();
+    if let Ok(dir) = std::fs::read_dir(&current_dir) {
+        for entry in dir.flatten() {
+            if let Some(file_name) = entry.path().file_name() {
+                if file_name.eq(".git") {
+                    default_path = current_dir.to_str().unwrap().to_owned();
+                    *lfs_files.lock().unwrap() = get_lfs_files(&current_dir);
+                }
+            }
+        }
+    }
+    let repo = Arc::new(RwLock::new(default_path));
+    dbg!(&repo);
+    let repo_handler = repo.clone();
     let lfs_files_handler = lfs_files.clone();
     let matcher = Arc::new(Mutex::new(SkimMatcherV2::default()));
     let matcher_handler = matcher.clone();
@@ -117,9 +132,23 @@ fn main() {
                 Ok(command) => {
                     match command {
                         // definitions for your custom commands from Cmd here
-                        api::Request::Echo { message } => {
+                        api::Request::Echo {
+                            message,
+                            callback,
+                            error,
+                        } => {
                             //  your command code
                             println!("{}", message);
+                            tauri::execute_promise(
+                                _webview,
+                                move || {
+                                    Ok(api::Response::PickRepo {
+                                        path: repo_promise.read().unwrap().clone(),
+                                    })
+                                },
+                                callback,
+                                error,
+                            )
                         }
                         api::Request::PickRepo { callback, error } => tauri::execute_promise(
                             _webview,
@@ -142,6 +171,7 @@ fn main() {
                         api::Request::GetLockedFiles { callback, error } => tauri::execute_promise(
                             _webview,
                             move || {
+                                println!("getting locked files");
                                 Ok(api::Response::GetLockedFiles {
                                     locked_files: get_locked_files(&*repo_promise.read().unwrap()),
                                 })
@@ -156,6 +186,8 @@ fn main() {
                         } => tauri::execute_promise(
                             _webview,
                             move || {
+                                println!("getting filter files");
+
                                 let filtered_list: Vec<String> = lfs_files_promise
                                     .lock()
                                     .unwrap()

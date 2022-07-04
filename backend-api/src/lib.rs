@@ -13,7 +13,6 @@ pub struct LockEntry {
     pub locked_at: String,
 }
 
-
 #[cfg(target_arch = "wasm32")]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
@@ -32,6 +31,8 @@ pub enum Request {
 pub enum Request {
     Echo {
         message: String,
+        callback: String,
+        error: String,
     },
     PickRepo {
         callback: String,
@@ -67,5 +68,3 @@ pub enum Response {
     LockFile { lock_entry: LockEntry },
     UnlockFile { id: u32 },
 }
-
-

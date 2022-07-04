@@ -83,6 +83,25 @@ pub async fn pick_repo() -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
+pub async fn echo() -> Result<String, JsValue> {
+    let tauri = get_tauri().unwrap();
+    let value: JsValue = tauri
+        .promisified(
+            JsValue::from_serde(&api::Request::Echo {
+                message: "useless".into(),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+    let future = wasm_bindgen_futures::JsFuture::from(js_sys::Promise::resolve(&value));
+    let response: api::Response = future.await?.into_serde().unwrap();
+    match response {
+        Response::PickRepo { path } => Ok(path),
+        _ => Err(JsValue::from_str("failed to get pick repo response")),
+    }
+}
+
+#[wasm_bindgen]
 pub async fn get_locked_files() -> Result<js_sys::Array, JsValue> {
     let tauri = get_tauri().unwrap();
     let value: JsValue = tauri
@@ -157,6 +176,11 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
+        link.send_future(async {
+            Msg::Echo {
+                message: "what".into(),
+            }
+        });
         Self {
             link,
             value: 0,
@@ -189,8 +213,15 @@ impl Component for Model {
                 true
             }
             Msg::Echo { message } => {
-                let tauri = get_tauri().unwrap();
-                tauri.invoke(JsValue::from_serde(&api::Request::Echo { message }).unwrap());
+                ConsoleService::log("initialize");
+                self.link.send_future(async {
+                    match echo().await {
+                        Ok(repo) => Msg::RepoPicked { repo },
+                        Err(_) => Msg::RepoPicked {
+                            repo: String::new(),
+                        },
+                    }
+                });
                 true
             }
             Msg::RepoPicked { repo } => {
