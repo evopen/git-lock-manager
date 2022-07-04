@@ -249,11 +249,10 @@ impl Component for Model {
                 false
             }
             Msg::LockedFilesReceived(v) => {
-                ConsoleService::log("updated");
+                ConsoleService::log(&format!("updated {:?}", &v));
                 self.locked_files.clear();
                 for entry in v {
-                    let entry: Vec<String> =
-                        entry.split_whitespace().map(|s| s.to_string()).collect();
+                    let entry: Vec<String> = entry.split('\t').map(|s| s.to_string()).collect();
 
                     self.locked_files.insert(
                         entry.get(0).unwrap().clone(),
