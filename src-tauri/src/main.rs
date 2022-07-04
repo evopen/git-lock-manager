@@ -74,11 +74,12 @@ fn lock_file(repo: &str, file: &str) -> Option<api::LockEntry> {
         .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
         .output()
         .expect(format!("failed to lock {}", file).as_str());
-    match serde_json::from_str::<api::LockEntry>(String::from_utf8(output.stdout).unwrap().as_str())
-    {
-        Ok(e) => Some(e),
-        Err(_) => {
-            println!("failed");
+    match serde_json::from_str::<Vec<api::LockEntry>>(
+        String::from_utf8(output.stdout).unwrap().as_str(),
+    ) {
+        Ok(e) => Some(e[0].clone()),
+        Err(e) => {
+            println!("failed, {}", e);
             None
         }
     }
