@@ -1,6 +1,6 @@
 [package]
 name = "git-lock-manager"
-version = "1.1.0"
+version = "1.1.1"
 description = "A Git LFS lock GUI"
 authors = [ "evopen <520dhh@gmail.com>" ]
 license = ""
